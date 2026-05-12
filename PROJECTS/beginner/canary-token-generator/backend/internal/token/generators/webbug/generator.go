@@ -5,6 +5,7 @@ package webbug
 
 import (
 	"context"
+	"net"
 	"net/http"
 	"strings"
 
@@ -50,24 +51,25 @@ func (g *Generator) Trigger(
 	t *token.Token,
 	r *http.Request,
 ) (*event.Event, *generators.TriggerResponse, error) {
-	tokenID := ""
-	if t != nil {
-		tokenID = t.ID
-	}
-	evt := &event.Event{
-		TokenID:   tokenID,
-		SourceIP:  realIP(r),
-		UserAgent: optionalHeader(r.UserAgent()),
-		Referer:   optionalHeader(r.Header.Get(headerReferer)),
-	}
 	resp := &generators.TriggerResponse{
 		StatusCode:  http.StatusOK,
 		ContentType: pixel.ContentType,
-		Body:        pixel.TransparentGIF,
+		Body:        pixel.Clone(),
 		ExtraHeaders: map[string]string{
 			headerCacheControl: cacheControlNoStore,
 			headerPragma:       pragmaNoCache,
 		},
+	}
+
+	if t == nil {
+		return nil, resp, nil
+	}
+
+	evt := &event.Event{
+		TokenID:   t.ID,
+		SourceIP:  realIP(r),
+		UserAgent: optionalHeader(r.UserAgent()),
+		Referer:   optionalHeader(r.Header.Get(headerReferer)),
 	}
 	return evt, resp, nil
 }
@@ -84,12 +86,27 @@ func realIP(r *http.Request) string {
 	if v := strings.TrimSpace(r.Header.Get(headerCFConnectingIP)); v != "" {
 		return v
 	}
-	if v := r.Header.Get(headerXForwardedFor); v != "" {
-		parts := strings.Split(v, ",")
-		return strings.TrimSpace(parts[len(parts)-1])
+	if v := lastNonEmptyXFF(r.Header.Get(headerXForwardedFor)); v != "" {
+		return v
 	}
 	if v := strings.TrimSpace(r.Header.Get(headerXRealIP)); v != "" {
 		return v
 	}
+	if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+		return host
+	}
 	return r.RemoteAddr
+}
+
+func lastNonEmptyXFF(header string) string {
+	if header == "" {
+		return ""
+	}
+	parts := strings.Split(header, ",")
+	for i := len(parts) - 1; i >= 0; i-- {
+		if v := strings.TrimSpace(parts[i]); v != "" {
+			return v
+		}
+	}
+	return ""
 }

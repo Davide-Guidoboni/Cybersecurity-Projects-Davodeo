@@ -5,6 +5,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -159,23 +160,28 @@ func gracefulShutdown(
 	)
 	defer cancel()
 
+	var errs []error
 	if err := srv.Shutdown(shutdownCtx, drainDelay); err != nil {
 		logger.Error("server shutdown error", "error", err)
+		errs = append(errs, fmt.Errorf("server shutdown: %w", err))
 	}
 	if telemetry != nil {
 		if err := telemetry.Shutdown(shutdownCtx); err != nil {
 			logger.Error("telemetry shutdown error", "error", err)
+			errs = append(errs, fmt.Errorf("telemetry shutdown: %w", err))
 		}
 	}
 	if err := rdb.Close(); err != nil {
 		logger.Error("redis close error", "error", err)
+		errs = append(errs, fmt.Errorf("redis close: %w", err))
 	}
 	if err := db.Close(); err != nil {
 		logger.Error("database close error", "error", err)
+		errs = append(errs, fmt.Errorf("database close: %w", err))
 	}
 
 	logger.Info("application stopped")
-	return nil
+	return errors.Join(errs...)
 }
 
 func setupLogger(cfg config.LogConfig) *slog.Logger {

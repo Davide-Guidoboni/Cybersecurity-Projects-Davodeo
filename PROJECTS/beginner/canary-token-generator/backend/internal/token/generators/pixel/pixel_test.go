@@ -24,33 +24,58 @@ var (
 	gifTrailer  = byte(0x3b)
 )
 
-func TestTransparentGIF_Length(t *testing.T) {
-	require.Len(t, pixel.TransparentGIF, expectedLength)
+func TestLen_Is43(t *testing.T) {
+	require.Equal(t, expectedLength, pixel.Len())
 }
 
-func TestTransparentGIF_MagicBytes(t *testing.T) {
+func TestClone_Length(t *testing.T) {
+	require.Len(t, pixel.Clone(), expectedLength)
+}
+
+func TestClone_MagicBytes(t *testing.T) {
+	g := pixel.Clone()
 	require.True(
 		t,
-		bytes.HasPrefix(pixel.TransparentGIF, gif89aMagic),
+		bytes.HasPrefix(g, gif89aMagic),
 		"expected GIF89a magic prefix, got % x",
-		pixel.TransparentGIF[:len(gif89aMagic)],
+		g[:len(gif89aMagic)],
 	)
 	require.Equal(
 		t,
 		gifTrailer,
-		pixel.TransparentGIF[len(pixel.TransparentGIF)-1],
+		g[len(g)-1],
 		"expected trailing GIF terminator 0x3B",
 	)
 }
 
-func TestTransparentGIF_DecodesAsImageGIF(t *testing.T) {
-	img, err := gif.Decode(bytes.NewReader(pixel.TransparentGIF))
+func TestClone_DecodesAsImageGIF(t *testing.T) {
+	img, err := gif.Decode(bytes.NewReader(pixel.Clone()))
 	require.NoError(t, err)
 	require.NotNil(t, img)
 
 	bounds := img.Bounds()
 	require.Equal(t, expectedWidth, bounds.Dx())
 	require.Equal(t, expectedHeight, bounds.Dy())
+}
+
+func TestClone_ReturnsIndependentCopy(t *testing.T) {
+	a := pixel.Clone()
+	b := pixel.Clone()
+	require.Equal(t, a, b, "two clones must be byte-equal")
+
+	a[0] = 0x00
+	require.Equal(
+		t,
+		byte(0x47),
+		b[0],
+		"mutating one clone must not affect another",
+	)
+	require.Equal(
+		t,
+		byte(0x47),
+		pixel.Clone()[0],
+		"mutating one clone must not affect the package-internal source",
+	)
 }
 
 func TestContentType_IsImageGIF(t *testing.T) {

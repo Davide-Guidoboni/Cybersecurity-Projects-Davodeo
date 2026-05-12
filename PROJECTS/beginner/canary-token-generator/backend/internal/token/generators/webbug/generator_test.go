@@ -106,72 +106,114 @@ func TestTrigger_RecordsEventWithRequestMetadata(t *testing.T) {
 		},
 	)
 
-	t.Run(
-		"source ip precedence CF > XFF (last) > XRI > RemoteAddr",
-		func(t *testing.T) {
-			cases := []struct {
-				name    string
-				headers map[string]string
-				remote  string
-				wantIP  string
-			}{
-				{
-					name: "CF wins over XFF and XRI",
-					headers: map[string]string{
-						"CF-Connecting-IP": "203.0.113.10",
-						"X-Forwarded-For":  "198.51.100.1, 198.51.100.2",
-						"X-Real-IP":        "192.0.2.99",
-					},
-					remote: "127.0.0.1:9999",
-					wantIP: "203.0.113.10",
+	t.Run("source ip precedence", func(t *testing.T) {
+		cases := []struct {
+			name    string
+			headers map[string]string
+			remote  string
+			wantIP  string
+		}{
+			{
+				name: "CF wins over XFF and XRI",
+				headers: map[string]string{
+					"CF-Connecting-IP": "203.0.113.10",
+					"X-Forwarded-For":  "198.51.100.1, 198.51.100.2",
+					"X-Real-IP":        "192.0.2.99",
 				},
-				{
-					name: "XFF rightmost wins over XRI when no CF",
-					headers: map[string]string{
-						"X-Forwarded-For": "198.51.100.1, 198.51.100.7",
-						"X-Real-IP":       "192.0.2.99",
-					},
-					remote: "127.0.0.1:9999",
-					wantIP: "198.51.100.7",
+				remote: "127.0.0.1:9999",
+				wantIP: "203.0.113.10",
+			},
+			{
+				name: "XFF rightmost wins over XRI when no CF",
+				headers: map[string]string{
+					"X-Forwarded-For": "198.51.100.1, 198.51.100.7",
+					"X-Real-IP":       "192.0.2.99",
 				},
-				{
-					name: "XRI when no CF or XFF",
-					headers: map[string]string{
-						"X-Real-IP": "192.0.2.99",
-					},
-					remote: "127.0.0.1:9999",
-					wantIP: "192.0.2.99",
+				remote: "127.0.0.1:9999",
+				wantIP: "198.51.100.7",
+			},
+			{
+				name: "XFF trailing-comma falls through to XRI",
+				headers: map[string]string{
+					"X-Forwarded-For": "198.51.100.1, ",
+					"X-Real-IP":       "192.0.2.99",
 				},
-				{
-					name:    "RemoteAddr when no proxy headers",
-					headers: nil,
-					remote:  "127.0.0.1:9999",
-					wantIP:  "127.0.0.1:9999",
+				remote: "127.0.0.1:9999",
+				wantIP: "198.51.100.1",
+			},
+			{
+				name: "XFF entirely empty entries fall through to XRI",
+				headers: map[string]string{
+					"X-Forwarded-For": ", ,",
+					"X-Real-IP":       "192.0.2.99",
 				},
-				{
-					name: "CF value is trimmed of whitespace",
-					headers: map[string]string{
-						"CF-Connecting-IP": "  203.0.113.10  ",
-					},
-					remote: "127.0.0.1:9999",
-					wantIP: "203.0.113.10",
+				remote: "127.0.0.1:9999",
+				wantIP: "192.0.2.99",
+			},
+			{
+				name: "XRI when no CF or XFF",
+				headers: map[string]string{
+					"X-Real-IP": "192.0.2.99",
 				},
-			}
-			for _, tc := range cases {
-				tc := tc
-				t.Run(tc.name, func(t *testing.T) {
-					r := httptest.NewRequest(http.MethodGet, "/c/token1", nil)
-					for k, v := range tc.headers {
-						r.Header.Set(k, v)
-					}
-					r.RemoteAddr = tc.remote
-					evt, _, err := g.Trigger(context.Background(), tok, r)
-					require.NoError(t, err)
-					require.Equal(t, tc.wantIP, evt.SourceIP)
-				})
-			}
-		},
-	)
+				remote: "127.0.0.1:9999",
+				wantIP: "192.0.2.99",
+			},
+			{
+				name:    "RemoteAddr IPv4 strips port",
+				headers: nil,
+				remote:  "127.0.0.1:9999",
+				wantIP:  "127.0.0.1",
+			},
+			{
+				name:    "RemoteAddr IPv6 strips brackets and port",
+				headers: nil,
+				remote:  "[2001:db8::1]:54321",
+				wantIP:  "2001:db8::1",
+			},
+			{
+				name:    "RemoteAddr loopback IPv6 strips brackets and port",
+				headers: nil,
+				remote:  "[::1]:9999",
+				wantIP:  "::1",
+			},
+			{
+				name:    "RemoteAddr without port falls back to raw value",
+				headers: nil,
+				remote:  "127.0.0.1",
+				wantIP:  "127.0.0.1",
+			},
+			{
+				name: "XFF IPv6 rightmost",
+				headers: map[string]string{
+					"X-Forwarded-For": "198.51.100.1, 2001:db8::dead",
+				},
+				remote: "127.0.0.1:9999",
+				wantIP: "2001:db8::dead",
+			},
+			{
+				name: "CF value is trimmed of whitespace",
+				headers: map[string]string{
+					"CF-Connecting-IP": "  203.0.113.10  ",
+				},
+				remote: "127.0.0.1:9999",
+				wantIP: "203.0.113.10",
+			},
+		}
+		for _, tc := range cases {
+			tc := tc
+			t.Run(tc.name, func(t *testing.T) {
+				r := httptest.NewRequest(http.MethodGet, "/c/token1", nil)
+				for k, v := range tc.headers {
+					r.Header.Set(k, v)
+				}
+				r.RemoteAddr = tc.remote
+				evt, _, err := g.Trigger(context.Background(), tok, r)
+				require.NoError(t, err)
+				require.NotNil(t, evt)
+				require.Equal(t, tc.wantIP, evt.SourceIP)
+			})
+		}
+	})
 
 	t.Run(
 		"missing user agent and referer record as nil pointers",
@@ -183,6 +225,7 @@ func TestTrigger_RecordsEventWithRequestMetadata(t *testing.T) {
 
 			evt, _, err := g.Trigger(context.Background(), tok, r)
 			require.NoError(t, err)
+			require.NotNil(t, evt)
 			require.Nil(
 				t,
 				evt.UserAgent,
@@ -208,9 +251,28 @@ func TestTrigger_ResponseIs43ByteGIF(t *testing.T) {
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	require.Equal(t, pixel.ContentType, resp.ContentType)
 	require.Len(t, resp.Body, gifByteLength)
-	require.Equal(t, pixel.TransparentGIF, resp.Body)
+	require.Equal(t, pixel.Clone(), resp.Body)
 	require.Equal(t, cacheControlNoStore, resp.ExtraHeaders["Cache-Control"])
 	require.Equal(t, pragmaNoCache, resp.ExtraHeaders["Pragma"])
+}
+
+func TestTrigger_ResponseBodyIsIndependentCopyPerCall(t *testing.T) {
+	g := webbug.New()
+	tok := newWebbugToken("abc")
+	r := httptest.NewRequest(http.MethodGet, "/c/abc", nil)
+
+	_, resp1, err := g.Trigger(context.Background(), tok, r)
+	require.NoError(t, err)
+	_, resp2, err := g.Trigger(context.Background(), tok, r)
+	require.NoError(t, err)
+
+	resp1.Body[0] = 0x00
+	require.Equal(
+		t,
+		byte(0x47),
+		resp2.Body[0],
+		"each Trigger call must produce an independent body slice",
+	)
 }
 
 func TestTrigger_TokenNotFound_StillReturnsGIF(t *testing.T) {
@@ -228,19 +290,10 @@ func TestTrigger_TokenNotFound_StillReturnsGIF(t *testing.T) {
 	require.NotNil(t, resp, "nil-token path must still return GIF response")
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	require.Equal(t, pixel.ContentType, resp.ContentType)
-	require.Equal(t, pixel.TransparentGIF, resp.Body)
-	require.NotNil(t, evt, "event value still produced for forensic continuity")
-	require.Empty(
+	require.Equal(t, pixel.Clone(), resp.Body)
+	require.Nil(
 		t,
-		evt.TokenID,
-		"empty TokenID signals nil token; persistence layer decides what to do",
+		evt,
+		"nil-token path returns nil event so the handler cannot accidentally persist a row with empty TokenID (FK violation)",
 	)
-	require.Equal(
-		t,
-		"203.0.113.100",
-		evt.SourceIP,
-		"source IP still captured for forensics",
-	)
-	require.NotNil(t, evt.UserAgent)
-	require.Equal(t, "curl/8.0.0", *evt.UserAgent)
 }
