@@ -14,14 +14,9 @@ var (
 	ErrDuplicateKey = errors.New("duplicate key violation")
 	ErrForeignKey   = errors.New("foreign key violation")
 	ErrInvalidInput = errors.New("invalid input")
-	ErrUnauthorized = errors.New("unauthorized")
-	ErrForbidden    = errors.New("forbidden")
 	ErrInternal     = errors.New("internal server error")
 	ErrConflict     = errors.New("resource conflict")
 	ErrRateLimited  = errors.New("rate limit exceeded")
-	ErrTokenExpired = errors.New("token expired")
-	ErrTokenInvalid = errors.New("token invalid")
-	ErrTokenRevoked = errors.New("token revoked")
 )
 
 type AppError struct {
@@ -86,30 +81,6 @@ func ValidationError(message string) *AppError {
 	}
 }
 
-func UnauthorizedError(message string) *AppError {
-	if message == "" {
-		message = "authentication required"
-	}
-	return &AppError{
-		Err:        ErrUnauthorized,
-		Message:    message,
-		StatusCode: http.StatusUnauthorized,
-		Code:       "UNAUTHORIZED",
-	}
-}
-
-func ForbiddenError(message string) *AppError {
-	if message == "" {
-		message = "access denied"
-	}
-	return &AppError{
-		Err:        ErrForbidden,
-		Message:    message,
-		StatusCode: http.StatusForbidden,
-		Code:       "FORBIDDEN",
-	}
-}
-
 func InternalError(err error) *AppError {
 	return &AppError{
 		Err:        err,
@@ -125,33 +96,6 @@ func RateLimitError() *AppError {
 		Message:    "too many requests",
 		StatusCode: http.StatusTooManyRequests,
 		Code:       "RATE_LIMITED",
-	}
-}
-
-func TokenExpiredError() *AppError {
-	return &AppError{
-		Err:        ErrTokenExpired,
-		Message:    "token has expired",
-		StatusCode: http.StatusUnauthorized,
-		Code:       "TOKEN_EXPIRED",
-	}
-}
-
-func TokenInvalidError() *AppError {
-	return &AppError{
-		Err:        ErrTokenInvalid,
-		Message:    "invalid token",
-		StatusCode: http.StatusUnauthorized,
-		Code:       "TOKEN_INVALID",
-	}
-}
-
-func TokenRevokedError() *AppError {
-	return &AppError{
-		Err:        ErrTokenRevoked,
-		Message:    "token has been revoked",
-		StatusCode: http.StatusUnauthorized,
-		Code:       "TOKEN_REVOKED",
 	}
 }
 

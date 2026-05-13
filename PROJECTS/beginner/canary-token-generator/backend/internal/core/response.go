@@ -96,14 +96,6 @@ func NotFound(w http.ResponseWriter, resource string) {
 	JSONError(w, NotFoundError(resource))
 }
 
-func Unauthorized(w http.ResponseWriter, message string) {
-	JSONError(w, UnauthorizedError(message))
-}
-
-func Forbidden(w http.ResponseWriter, message string) {
-	JSONError(w, ForbiddenError(message))
-}
-
 func InternalServerError(w http.ResponseWriter, err error) {
 	slog.Error("internal server error", "error", err)
 	JSONError(w, InternalError(err))
