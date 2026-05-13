@@ -7,8 +7,7 @@
 .worktrees/
 DEMO-TRACKER.md
 
-PROJECTS/beginner/hash-cracker/docs/
-PROJECTS/advanced/monitor-the-situation-dashboard/docs/
+/docs/
 
 # Python virtualenvs and caches
 .venv/
