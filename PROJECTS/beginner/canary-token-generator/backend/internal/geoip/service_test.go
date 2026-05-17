@@ -214,3 +214,39 @@ func TestService_Close_PropagatesReaderError(t *testing.T) {
 	fake := &fakeCityReader{closeErr: wantErr}
 	require.ErrorIs(t, newServiceWithFake(fake).Close(), wantErr)
 }
+
+func TestFirstSubdivisionName_EmptySliceReturnsEmpty(t *testing.T) {
+	t.Parallel()
+	require.Empty(t, firstSubdivisionName(nil))
+	require.Empty(t, firstSubdivisionName([]geoip2.CitySubdivision{}))
+}
+
+func TestFirstSubdivisionName_PrefersEnglishName(t *testing.T) {
+	t.Parallel()
+	subs := []geoip2.CitySubdivision{{
+		Names:   geoip2.Names{English: "California"},
+		ISOCode: "CA",
+	}}
+	require.Equal(t, "California", firstSubdivisionName(subs))
+}
+
+func TestFirstSubdivisionName_FallsBackToISOCode(t *testing.T) {
+	t.Parallel()
+	subs := []geoip2.CitySubdivision{{ISOCode: "CA"}}
+	require.Equal(t, "CA", firstSubdivisionName(subs))
+}
+
+func TestFirstSubdivisionName_SkipsEntirelyEmptyEntries(t *testing.T) {
+	t.Parallel()
+	subs := []geoip2.CitySubdivision{
+		{},
+		{Names: geoip2.Names{English: "Oxfordshire"}},
+	}
+	require.Equal(t, "Oxfordshire", firstSubdivisionName(subs))
+}
+
+func TestFirstSubdivisionName_AllEmptyEntriesReturnsEmpty(t *testing.T) {
+	t.Parallel()
+	subs := []geoip2.CitySubdivision{{}, {}, {}}
+	require.Empty(t, firstSubdivisionName(subs))
+}
