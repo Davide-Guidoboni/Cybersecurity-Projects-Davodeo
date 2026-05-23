@@ -232,7 +232,7 @@ jobs:
 
     - name: Install nph
       if: matrix.type == 'nim'
-      run: nimble install -y nph
+      run: nimble install -y "https://github.com/arnetheduck/nph"
 
     # Rust Setup (pinned to match locally-verified clippy version)
     - name: Install Rust 1.92.0
