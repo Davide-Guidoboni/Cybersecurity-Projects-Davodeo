@@ -319,11 +319,15 @@ pub fn main() !void {
     var rsapub_tmpl = [_]ck.CK_ATTRIBUTE{
         .{ .type = ck.CKA_MODULUS_BITS, .pValue = &rsa_bits, .ulValueLen = @sizeOf(ck.CK_ULONG) },
         .{ .type = ck.CKA_VERIFY, .pValue = &ck_yes, .ulValueLen = 1 },
+        .{ .type = ck.CKA_VERIFY_RECOVER, .pValue = &ck_yes, .ulValueLen = 1 },
         .{ .type = ck.CKA_ENCRYPT, .pValue = &ck_yes, .ulValueLen = 1 },
+        .{ .type = ck.CKA_WRAP, .pValue = &ck_yes, .ulValueLen = 1 },
     };
     var rsapriv_tmpl = [_]ck.CK_ATTRIBUTE{
         .{ .type = ck.CKA_SIGN, .pValue = &ck_yes, .ulValueLen = 1 },
+        .{ .type = ck.CKA_SIGN_RECOVER, .pValue = &ck_yes, .ulValueLen = 1 },
         .{ .type = ck.CKA_DECRYPT, .pValue = &ck_yes, .ulValueLen = 1 },
+        .{ .type = ck.CKA_UNWRAP, .pValue = &ck_yes, .ulValueLen = 1 },
         .{ .type = ck.CKA_PRIVATE, .pValue = &ck_false, .ulValueLen = 1 },
     };
     var h_rsapub: ck.CK_OBJECT_HANDLE = 0;

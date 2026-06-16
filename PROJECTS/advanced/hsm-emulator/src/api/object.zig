@@ -86,6 +86,21 @@ pub fn materializeDefaults(obj: *Object, allocator: std.mem.Allocator, class: ck
         const def: u8 = if (class == ck.CKO_PRIVATE_KEY) ck.CK_TRUE else ck.CK_FALSE;
         try obj.set(allocator, ck.CKA_PRIVATE, &[_]u8{def});
     }
+    switch (class) {
+        ck.CKO_PUBLIC_KEY => {
+            const attrs = [_]ck.CK_ATTRIBUTE_TYPE{ ck.CKA_ENCRYPT, ck.CKA_VERIFY, ck.CKA_VERIFY_RECOVER, ck.CKA_WRAP, ck.CKA_DERIVE };
+            for (attrs) |a| if (!obj.has(a)) try obj.set(allocator, a, &[_]u8{ck.CK_FALSE});
+        },
+        ck.CKO_PRIVATE_KEY => {
+            const attrs = [_]ck.CK_ATTRIBUTE_TYPE{ ck.CKA_DECRYPT, ck.CKA_SIGN, ck.CKA_SIGN_RECOVER, ck.CKA_UNWRAP, ck.CKA_DERIVE, ck.CKA_ALWAYS_AUTHENTICATE };
+            for (attrs) |a| if (!obj.has(a)) try obj.set(allocator, a, &[_]u8{ck.CK_FALSE});
+        },
+        ck.CKO_SECRET_KEY => {
+            const attrs = [_]ck.CK_ATTRIBUTE_TYPE{ ck.CKA_ENCRYPT, ck.CKA_DECRYPT, ck.CKA_SIGN, ck.CKA_VERIFY, ck.CKA_WRAP, ck.CKA_UNWRAP, ck.CKA_DERIVE };
+            for (attrs) |a| if (!obj.has(a)) try obj.set(allocator, a, &[_]u8{ck.CK_FALSE});
+        },
+        else => {},
+    }
 }
 
 pub fn insertNew(inst: *state.Instance, sess: *session.Session, obj_in: Object, phObject: *ck.CK_OBJECT_HANDLE) ck.CK_RV {
