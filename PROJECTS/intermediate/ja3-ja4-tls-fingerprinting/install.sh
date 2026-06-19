@@ -322,6 +322,9 @@ cat >&2 <<FOOTER
   ${DIM}inspect the intel db:${RESET}    ${CYAN}${BINARY} intel stats${RESET}
   ${DIM}look one up:${RESET}             ${CYAN}${BINARY} intel lookup ja3 <hash>${RESET}
 FOOTER
-[ "$DO_LIVE" -eq 0 ] && printf '%s\n' "  ${DIM}live capture needs caps:${RESET}  re-run with ${CYAN}--live${RESET}, or use sudo" >&2
+if [ "$DO_LIVE" -eq 0 ]; then
+    printf '%s\n' "  ${DIM}live capture needs caps (then NO sudo):${RESET}  re-run ${CYAN}install.sh --live${RESET}" >&2
+    printf '%s\n' "  ${DIM}or grant now:${RESET}  ${CYAN}sudo setcap cap_net_raw,cap_net_admin=eip \"\$(command -v tlsfp)\"${RESET}" >&2
+fi
 have just && [ -f "$PROJECT/justfile" ] && printf '%s\n' "  ${DIM}dev commands:${RESET}            ${CYAN}just${RESET}" >&2
 printf '%s\n' "  ${DIM}docs: https://github.com/${REPO_OWNER}/${REPO_NAME}${RESET}" >&2

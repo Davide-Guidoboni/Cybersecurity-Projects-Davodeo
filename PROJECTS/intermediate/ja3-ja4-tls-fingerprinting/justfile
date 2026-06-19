@@ -116,6 +116,12 @@ ps:
 # =============================================================================
 
 [group('tunnel')]
+redeploy:
+    env -u APP_NAME -u VITE_APP_TITLE -u VITE_API_URL -u VITE_API_TARGET -u NGINX_HOST_PORT -u FRONTEND_HOST_PORT -u RUST_LOG -u COMPOSE_PROFILES docker compose --env-file .env -f compose.yml -f cloudflared.compose.yml --profile backend down --remove-orphans
+    env -u APP_NAME -u VITE_APP_TITLE -u VITE_API_URL -u VITE_API_TARGET -u NGINX_HOST_PORT -u FRONTEND_HOST_PORT -u RUST_LOG -u COMPOSE_PROFILES docker compose --env-file .env -f compose.yml -f cloudflared.compose.yml --profile backend build
+    env -u APP_NAME -u VITE_APP_TITLE -u VITE_API_URL -u VITE_API_TARGET -u NGINX_HOST_PORT -u FRONTEND_HOST_PORT -u RUST_LOG -u COMPOSE_PROFILES docker compose --env-file .env -f compose.yml -f cloudflared.compose.yml --profile backend up -d --remove-orphans
+
+[group('tunnel')]
 tunnel-up *ARGS:
     docker compose --env-file .env -f compose.yml -f cloudflared.compose.yml up {{ARGS}}
 
