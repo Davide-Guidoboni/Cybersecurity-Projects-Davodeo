@@ -67,10 +67,6 @@ from dataclasses import dataclass
 # set of strings (here: "high" / "medium" / "low"). Mypy catches typos.
 from typing import Literal
 
-# Third-party (rich): the printer that actually draws the table to
-# the terminal, with color and Unicode support.
-from rich.console import Console
-
 # Third-party (rich): builds the colored ASCII table we print for
 # ranked hash candidates.
 from rich.table import Table
@@ -78,6 +74,7 @@ from rich.table import Table
 # new imports for challenge 1.3
 import json
 from dataclasses import asdict
+
 
 # =============================================================================
 # Confidence type — only three valid values
@@ -585,7 +582,7 @@ def _build_argument_parser() -> argparse.ArgumentParser:
         prog = "hashid",
         description = (
             "Identify a hash string by prefix, length, and charset. "
-            "Returns ranked candidates with confidence and reasoning."
+            "Produces an output file named 'identified_hashes'."
         ),
     )
     parser.add_argument(
@@ -602,61 +599,11 @@ def _build_argument_parser() -> argparse.ArgumentParser:
         help = "Show at most this many candidates (default: 5).",
     )
 
-    # new flag for challenge 1.3
-    parser.add_argument(
-        "--json",
-        action="store_true", 
-        help="Prints output as JSON instead as table")
-
     # new argument for challenge 2.1
     parser.add_argument(
         "--file", 
-        #type=argparse.FileType("r") not inserted for it's depracated 
         help="File containing the hashes to identify")
     return parser
-
-
-def _render_table(
-    raw_input: str,
-    candidates: list[HashCandidate],
-    console: Console,
-) -> None:
-    """
-    Print a rich Table showing the identified candidates
-
-    A Table is a bordered grid. We give it three columns: algorithm,
-    confidence (color-coded), and reason
-    """
-    table = Table(
-        title = f"Candidates for: {raw_input.strip()}",
-        title_style = "bold cyan",
-        show_lines = False,
-    )
-    table.add_column("algorithm", style = "bold white", no_wrap = True)
-    table.add_column("confidence", no_wrap = True)
-    table.add_column("reason", style = "dim")
-
-    # Color confidence levels so the eye can scan them quickly.
-    # green → yellow → cyan is a gradient that reads "strong, weaker,
-    # weakest" without ever colliding with red, which is reserved for
-    # the no-match error message printed elsewhere in main(). Painting
-    # "low" in red would make three weak-but-valid guesses look like
-    # three errors at a glance — broken visual hierarchy
-    confidence_colors: dict[Confidence,
-                            str] = {
-                                "high": "green",
-                                "medium": "yellow",
-                                "low": "cyan",
-                            }
-    for candidate in candidates:
-        color = confidence_colors[candidate.confidence]
-        table.add_row(
-            candidate.algorithm,
-            f"[{color}]{candidate.confidence}[/{color}]",
-            candidate.reason,
-        )
-    console.print(table)
-
 
 def main() -> int:
     """
@@ -668,44 +615,57 @@ def main() -> int:
     """
     parser = _build_argument_parser()
     args = parser.parse_args()
-    console = Console()
-        
-    candidates = identify(args.hash)
 
-    if not candidates:
-        # `[red]...[/red]` is rich's inline color markup
-        console.print(
-            "[red]No identification possible.[/red] "
-            "Input did not match any known prefix, special format, "
-            "or hex length."
-        )
-        return 1
+    # addition for challenge 2.1
+    # "all_candidates" is a dictionary where every hash to identify
+    # gets paired with the list of all possible candidates for it.
+    # For every new hash, the hash and the list of candidates gets
+    # added to teh dictionary
+    all_candidates: dict[str, list[HashCandidate]] = {}
 
-    # Trim to the requested top-N
-    trimmed = candidates[: args.top]
-    if args.json:
-        # Printing output as JSON for challenge 1.3
-        # insertion in "json_result" of a top level where the original string is displayed 
-        json_top_level = json.dumps(args.hash, indent=2)
-        json_result = json_top_level
-        for index, _ in enumerate(candidates):
-            # every candidate gets added to the top level into a single json dump
-            plain_dict = asdict(candidates[index])
-            json_curr_candidate = json.dumps(plain_dict, indent=2)
-            
-            json_result += f"\n{json_curr_candidate}"
-        print(f"{json_result}")
-    else: 
-        _render_table(args.hash, trimmed, console)
+    # INPUT CASES:
+    # 1) Only the "hash" argument has been provided
+    # 2) Only a file containing all the hashes has been provided
+    # 3) Both the "hash" argument and a file have been provided
+    # 4) Neither the "hash" argument nor a file have been provided
+    #
+    # To cover all fours cases a serie of if statements will check
+    # both type of input. If the input case is the forth than 
+    # the input will be taken from standard input
 
-    # Helpful nudge — point the user at the cracker once they know
-    # what algorithm to target. Foundations tier is meant to chain
-    if trimmed[0].confidence == "high":
-        console.print(
-            "\n[dim]Next step: try the matching cracker mode "
-            "(see ../../beginner/hash-cracker).[/dim]"
-        )
+    # Every time an hash gets identified and candidates get listed,
+    # the list of candidates for such hash gets matched to "all_candidates"
+    if args.hash:
+        candidates = identify(args.hash)
+        all_candidates[args.hash] = candidates
 
+    if args.file:
+        with open(args.file, "r") as source:
+            for line in source:
+                candidates = identify(line)
+                all_candidates[line] = candidates
+
+    if not args.file and not args.hash:
+        input_lines = sys.stdin.readlines()
+        for line in input_lines:
+            candidates = identify(line)
+            all_candidates[line] = candidates
+
+    # print adjusted for the challenge 2.1
+    # since the input may come from a file and there may be a lot
+    # of hashes to identify and then to print somewhere, the output
+    # will be a file named "identified_hashes"
+    with open("identified_hashes.txt", "w") as dest:
+        for hash, candidates in all_candidates.items():
+            trimmed = candidates[: args.top]
+            if not candidates:
+                dest.write(f"{hash.strip()},unidentifiable\n")
+            else:
+                # Trim to the requested top-N
+                dest.write(f"{hash.strip()}")
+                for index, _ in enumerate(trimmed):
+                    dest.write(f",{candidates[index].algorithm}")
+                dest.write("\n")
     return 0
 
 

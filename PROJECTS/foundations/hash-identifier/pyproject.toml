@@ -214,3 +214,8 @@ python_files = ["test_*.py"]
 #   -v          → verbose, show each test name
 #   --tb=short  → short tracebacks on failure (less wall of text)
 addopts = "-v --tb=short"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+]

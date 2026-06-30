@@ -68,7 +68,7 @@ top-ranked candidate
 # decorator to expand one test function into many test cases
 # Third-party: the test runner itself. We also need it imported here
 # so we can use its `@pytest.mark.parametrize` decorator below.
-import pytest
+import pytest # type: ignore
 
 # Local: our own module. We pull in the public pieces under test —
 # the prefix-rule table, the result dataclass, and the entry function.

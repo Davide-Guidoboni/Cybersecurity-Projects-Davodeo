@@ -90,6 +90,11 @@ dev = [
     { name = "yapf" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=2.1.0" },
@@ -100,6 +105,9 @@ requires-dist = [
     { name = "yapf", marker = "extra == 'dev'", specifier = ">=0.43.0,<1.0.0" },
 ]
 provides-extras = ["dev"]
+
+[package.metadata.requires-dev]
+dev = [{ name = "pytest", specifier = ">=9.0.3" }]
 
 [[package]]
 name = "iniconfig"
