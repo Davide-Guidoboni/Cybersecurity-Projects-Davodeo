@@ -75,6 +75,10 @@ from rich.console import Console
 # ranked hash candidates.
 from rich.table import Table
 
+# new imports for challenge 1.3
+import json
+from dataclasses import asdict
+
 # =============================================================================
 # Confidence type — only three valid values
 # =============================================================================
@@ -178,6 +182,9 @@ PREFIX_RULES: list[tuple[str, str, str]] = [
     ("{SMD5}", "LDAP SMD5", "LDAP salted MD5 (base64 payload)"),
     ("{MD5}", "LDAP MD5", "LDAP MD5 (base64 payload)"),
     ("{CRYPT}", "LDAP CRYPT", "LDAP wrapping a crypt(3) hash"),
+
+    # New prefix for challenge 1.1
+    ("$ml$", "macOS / iCloud Keychain", "Apple PBKDF2-SHA512"),
 ]
 
 
@@ -208,6 +215,9 @@ HEX_LENGTH_RULES: dict[int, list[str]] = {
     # other thing that produces 16 hex chars in a security context
     # is a 64-bit CRC, which is rare enough that MySQL323 outranks it
     16: ["MySQL323", "CRC-64"],
+    # New length rule for challenge 1.2
+    # 24 hex chars = 12 bytes = 96 bits
+    24: ["Tiger-128"],
     # 32 hex chars = 16 bytes = 128 bits
     32: ["MD5", "NTLM", "MD4", "RIPEMD-128"],
     # 40 hex chars = 20 bytes = 160 bits
@@ -580,6 +590,7 @@ def _build_argument_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "hash",
+        nargs="?", # made it optional for challenge 2.1
         help =
         "The hash string to identify (wrap in single quotes if it contains $).",
     )
@@ -590,6 +601,18 @@ def _build_argument_parser() -> argparse.ArgumentParser:
         default = 5,
         help = "Show at most this many candidates (default: 5).",
     )
+
+    # new flag for challenge 1.3
+    parser.add_argument(
+        "--json",
+        action="store_true", 
+        help="Prints output as JSON instead as table")
+
+    # new argument for challenge 2.1
+    parser.add_argument(
+        "--file", 
+        #type=argparse.FileType("r") not inserted for it's depracated 
+        help="File containing the hashes to identify")
     return parser
 
 
@@ -646,7 +669,7 @@ def main() -> int:
     parser = _build_argument_parser()
     args = parser.parse_args()
     console = Console()
-
+        
     candidates = identify(args.hash)
 
     if not candidates:
@@ -660,7 +683,20 @@ def main() -> int:
 
     # Trim to the requested top-N
     trimmed = candidates[: args.top]
-    _render_table(args.hash, trimmed, console)
+    if args.json:
+        # Printing output as JSON for challenge 1.3
+        # insertion in "json_result" of a top level where the original string is displayed 
+        json_top_level = json.dumps(args.hash, indent=2)
+        json_result = json_top_level
+        for index, _ in enumerate(candidates):
+            # every candidate gets added to the top level into a single json dump
+            plain_dict = asdict(candidates[index])
+            json_curr_candidate = json.dumps(plain_dict, indent=2)
+            
+            json_result += f"\n{json_curr_candidate}"
+        print(f"{json_result}")
+    else: 
+        _render_table(args.hash, trimmed, console)
 
     # Helpful nudge — point the user at the cracker once they know
     # what algorithm to target. Foundations tier is meant to chain

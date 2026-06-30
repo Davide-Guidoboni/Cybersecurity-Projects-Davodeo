@@ -552,3 +552,25 @@ def test_every_prefix_rule_is_recognized_with_high_confidence(
     assert candidates, f"no candidates returned for prefix `{prefix}`"
     assert candidates[0].algorithm == algorithm
     assert candidates[0].confidence == "high"
+
+# test for challenge 1.1
+def test_macOS_prefix_is_recognized() -> None:
+    """
+    macOS / iCloud Keychain strings begin with `$ml$`
+    """
+    
+    sample = "$ml$teststringforprefix"
+    candidates = identify(sample)
+    # `any(...)` returns True if at least one element of the iterable
+    # makes the inner expression true. We check that AT LEAST ONE
+    # candidate is macOS / iCloud Keychain — using any() instead of [0] keeps the test
+    # robust if we ever add a second guess to the same prefix
+    assert any(c.algorithm == "macOS / iCloud Keychain" for c in candidates)
+
+#test for challenge 1.2
+def test_tiger128_length_returns_tiger128() -> None:
+
+    sample = "123456789012345678901234"
+    candidates = identify(sample)
+
+    assert any(c.algorithm == "Tiger-128" for c in candidates)
